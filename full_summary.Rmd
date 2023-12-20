@@ -1,0 +1,1363 @@
+---
+title: "Full Data Summary"
+output: pdf_document
+date: "2023-10-29"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, echo = FALSE, warning=FALSE, message = FALSE}
+library(tidyverse)
+library(here)
+library(lubridate)
+library(kableExtra)
+library(effects)
+```
+
+```{r, echo = FALSE, warning=FALSE, message = FALSE}
+#loading in the data
+day1 <- read_csv(here("post_survey_questionnaires", "ONE ACRE - Post Survey QQ & WTP Game-DC-(Day1-191023).csv")) %>%
+  select(!r2luxgd1_pay2) %>%
+  select(!r1luxgd2_pay2) %>%
+  mutate(day = "day1")
+
+day2 <- read_csv(here("post_survey_questionnaires", "ONE ACRE - Post Survey QQ & WTP Game-DC-(day2-201023).csv")) %>%
+  select(!r2luxgd1_pay2) %>%
+  select(!r1luxgd2_pay2)
+
+day2only <- anti_join(day2, day1, by = "resp_key") %>%
+  mutate(day = "day2")
+
+day3 <- read_csv(here("post_survey_questionnaires", "ONE ACRE - Post Survey QQ & WTP Game-DC-(day3-211023).csv")) %>%
+  select(!r2luxgd1_pay2) %>%
+  select(!r1luxgd2_pay2) 
+
+day3only <- anti_join(day3, day2, by = "resp_key") %>%
+  mutate(day = "day3")
+
+day4 <- read_csv(here("post_survey_questionnaires", "ONE ACRE - Post Survey QQ & WTP Game-(day4-221023).csv")) %>%
+  select(!r2luxgd1_pay2) %>%
+  select(!r1luxgd2_pay2) 
+
+day4only <- anti_join(day4, day3, by = "resp_key") %>%
+  mutate(day = "day4")
+
+day5 <- read_csv(here("post_survey_questionnaires", "ONE ACRE - Post Survey QQ & WTP Game-DC_WIDE.csv"))
+
+day5only <- anti_join(day5, day4, by = "resp_key") %>%
+  mutate(day = "day5")
+
+
+day6 <- read_csv(here("post_survey_questionnaires", "ONE ACRE - Post Survey QQ & WTP Game-(Day5-6-241023).csv")) %>%
+  select(!r2luxgd1_pay2) %>%
+  select(!r1luxgd2_pay2) 
+
+day6only <- anti_join(day6, day5, by = "resp_key") %>%
+  mutate(day = "day6")
+
+day7 <- read_csv(here("post_survey_questionnaires", "ONE ACRE - Post Survey QQ & WTP Game-(Day7-251023).csv")) 
+
+day7only <- anti_join(day7, day6, by = "resp_key") %>%
+  mutate(day = "day7")
+
+day8 <- read_csv(here("post_survey_questionnaires", "ONE ACRE - Post Survey QQ & WTP Game-(Day8-261023).csv")) 
+
+day8only <- anti_join(day7, day6, by = "resp_key") %>%
+  mutate(day = "day8") 
+
+day9 <- read_csv(here("post_survey_questionnaires", "ONE ACRE - Post Survey QQ & WTP Game-(Day10-281023).csv")) 
+
+day9only <- anti_join(day9, day8, by = "resp_key") %>%
+  mutate(day = "day9")
+
+full_data <- bind_rows(day1, day2only, day3only, day4only, day5only, day6only, day7only, day8only, day9only)
+
+# Updating gender / covariate info to be full 
+full_data <- full_data %>%
+  mutate(single_hh_head = case_when(
+    gender == 1 & arehhead == 1 ~ 1,
+    gender == 2 & arehhead == 1 ~ 2,
+    gender == 1 & arehhead == 2 ~ 2,
+    gender == 2 & arehhead == 2 ~ 1,
+    TRUE ~ NA
+  )) %>%
+  mutate(hh_head_gender = coalesce(single_hh_head, whohhead)) %>% #update hh gender 
+  mutate(singl_marr = ifelse(is.na(singl_marr), 2, singl_marr)) %>% #update single married 
+  mutate(oneacrefarmer_full = case_when(
+    singl_marr == 1 ~ "Yes",
+    presnt_surv == 1 ~ "Yes",
+    oneacrefarmer == 1 ~ "Yes",
+    oneacrefarmer == 2 ~ "No"
+  ))
+```
+
+
+```{r, echo = FALSE, warning=FALSE, message = FALSE}
+#selecting relevant variables
+full_data_key_vars <- full_data %>%
+  select(presnt_surv,
+         attend_train,
+         presnt_train,
+         gender,
+         singl_marr,
+         start_time,
+         end_time,
+         WTP_endttime,
+         WTP_starttime,
+         duration,
+         enumerator_name_label,
+         sitename_prefill,
+         intervetion_prefill, 
+         intervetion_prefill2,
+         unitsbags_harvest,
+         bags_have, 
+         howmany_bags,
+         bags_cost, 
+         kindof_food_cost, 
+         nonbagsexpct_sell, 
+         bagsexpct_sellcost, 
+         extramony_nonfod, 
+         hus_earnganyu, 
+         wife_earnganyu, 
+         otrmem_earnganyu,
+         partb_final_wtp, 
+         willpay_part_a,
+         partb_change,
+         understand_activity,
+         r1luxgd1_pay_conf, 
+         r2luxgd1_pay_conf, 
+         r1luxgd1_paynote, 
+         r2luxgd1_paynote, 
+         r1luxgd1_pay_check, 
+         r2luxgd1_pay_check, 
+         r1luxgd1_pay_change, 
+         r2luxgd1_pay_change, 
+         r1luxgd1_pay2, 
+         #r2luxgd1_pay2, 
+         chitenje1_final_wtp, 
+         chitenje2_final_wtp,
+         r1luxgd2_pay_conf, 
+         r2luxgd2_pay_conf, 
+         r1luxgd2_paynote, 
+         r2luxgd2_paynote, 
+         r1luxgd2_pay_check, 
+         r2luxgd2_pay_check, 
+         r1luxgd2_pay_change, 
+         r2luxgd2_pay_change, 
+         #r1luxgd2_pay2, 
+         r2luxgd2_pay2, 
+         toch1_final_wtp, 
+         toch2_final_wtp,
+         luxgd_lottwin,
+         luxgd_pick,
+         pcard_lesequal_chit,
+         pcard_lesequal_toc,
+         actul_pay,
+         day) %>%
+ 
+  #convert start/end times to date format
+  mutate(start_time = lubridate::ymd_hms(start_time), 
+         end_time = lubridate::ymd_hms(end_time),
+         WTP_starttime = lubridate::ymd_hms(WTP_starttime),
+         WTP_endttime = lubridate::ymd_hms(WTP_endttime)) %>%
+  
+  #calculate durations
+  mutate(survey_duration = end_time - start_time,
+         WTP_duration = WTP_endttime - WTP_starttime) %>%
+  
+  #combine WTP into one column (currently each has 2 because of randomization in object order)
+  mutate(chitenje_initial_wtp = coalesce(r1luxgd1_pay_conf, r2luxgd1_pay_conf),
+         chitenje_confirm_wtp = coalesce(r1luxgd1_paynote, r2luxgd1_paynote),
+         chitenje_check_higher = coalesce(r1luxgd1_pay_check, r2luxgd1_pay_check),
+         chitenje_change_wtp = coalesce(r1luxgd1_pay_change, r2luxgd1_pay_change),
+         #chitenje_updated_wtp = coalesce(r1luxgd1_pay2, r2luxgd1_pay2),
+         chitenje_wtp = coalesce(chitenje1_final_wtp, chitenje2_final_wtp),
+         torch_initial_wtp = coalesce(r1luxgd2_pay_conf, r2luxgd2_pay_conf),
+         torch_confirm_wtp = coalesce(r1luxgd2_paynote, r2luxgd2_paynote),
+         torch_check_higher = coalesce(r1luxgd2_pay_check, r2luxgd2_pay_check),
+         torch_change_wtp = coalesce(r1luxgd2_pay_change, r2luxgd2_pay_change),
+         #torch_updated_wtp = coalesce(r1luxgd2_pay2, r2luxgd2_pay2),
+         torch_wtp = coalesce(toch1_final_wtp, toch2_final_wtp)
+  ) %>%
+  
+  #combine training
+  mutate(attended_training = coalesce(presnt_train, attend_train))
+```
+
+
+```{r, echo = FALSE, warning=FALSE, message = FALSE}
+#CLEANING THE NAs
+
+# Specify the list of column names you want to process
+columns_to_replace_na <- c("howmany_bags", "bags_cost", "kindof_food_cost","hus_earnganyu", "wife_earnganyu", "otrmem_earnganyu")
+
+# Replace NA values with 0 for the specified columns
+full_data_key_vars <- full_data_key_vars %>%
+  mutate(across(all_of(columns_to_replace_na), ~ifelse(is.na(.), 0, .)))
+
+
+#Adding total Ganyu column and making the Ganyu in 1000s Kwacha
+full_data_key_vars_full <- full_data_key_vars %>%
+  mutate(duration_mins = duration/60,
+         bags_cost_thousands = bags_cost/1000,
+         kindof_food_cost_thousands = kindof_food_cost/1000,
+         bagsexpct_sellcost_thousands = bagsexpct_sellcost/1000,
+         extramony_nonfod_thousands = extramony_nonfod/1000) %>% 
+  mutate(total_ganyu = hus_earnganyu + wife_earnganyu + otrmem_earnganyu,
+         total_ganyu_thousands = total_ganyu/1000) %>%
+  mutate(hus_earnganyu_thousands = hus_earnganyu/1000,
+         wife_earnganyu_thousands = wife_earnganyu/1000,
+         otrmem_earnganyu_thousands = otrmem_earnganyu/1000)  #adjust variables to be in more appropriate units
+  
+```
+
+
+# Numnber of Treatment and Control
+
+```{r, echo = FALSE, message = FALSE, warning=FALSE, fig.height=3, fig.width=5}
+max_respondant <- full_data_key_vars_full %>%
+  group_by(intervetion_prefill2) %>%
+  summarize(n = n()) %>%
+  select(n)
+
+full_data_key_vars_full %>%
+  group_by(intervetion_prefill2) %>%
+  summarize(n = n()) %>%
+  mutate(percentage = round(n / sum(n) * 100), 1) %>% # Calculate percentage
+  ggplot(aes(x = intervetion_prefill2, y = n, fill = intervetion_prefill2)) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(label = paste0(percentage, "%"), y = n ), vjust = -0.5) +  # Add percentage labels
+  theme_minimal() +
+  labs(x = "Intervention",
+       y = "Number of respondents",
+       title = "Distribution of Treatment vs Control") +
+  scale_fill_manual(values = c("Treatment" = "#a8605d", "control" = "#7fabc7")) +
+  theme(legend.position = "null") +
+  ylim(c(0, max(max_respondant) + 100))
+```
+
+# Treatment and Control by Day
+
+```{r, echo = FALSE, message = FALSE, warning=FALSE, fig.height=3.5, fig.width=5.5}
+full_data_key_vars_full %>%
+  group_by(day, intervetion_prefill2) %>%
+  summarize(n = n()) %>%
+  ggplot(aes(x = day, y = n, fill = intervetion_prefill2)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Number of Treatment and Control Observations by Day",
+       y = "Count",
+       fill = "Intervention",
+       x = "") +
+  scale_fill_manual(values = c("Treatment" = "#a8605d", "control" = "#7fabc7")) +
+  theme_minimal() 
+```
+
+# Number of interviews at each site
+
+```{r, echo = FALSE, message = FALSE, warning=FALSE, fig.height=3, fig.width=5}
+full_data_key_vars_full %>%
+  group_by(sitename_prefill) %>%
+  summarise(n = n()) %>% 
+  ggplot(aes(x = sitename_prefill, y = n)) +
+  geom_bar(stat = "identity", fill = "#70914a") +
+  labs(
+    title = "Sample Sizes by Site",
+    x = "Site",
+    y = "Sample Size"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+
+# Who was present for training / interview 
+
+```{r, echo = FALSE, warning=FALSE, message = FALSE}
+#creating attendance df
+attendance <- full_data_key_vars_full %>%
+  mutate(attended_survey = case_when(
+    is.na(gender) & presnt_surv != 1 ~ "na - missing gender",
+    presnt_surv == 1 ~ "both",
+    gender == 1 & presnt_surv == 2 ~ "male",
+    gender == 2 & presnt_surv == 2 ~ "female",
+    TRUE ~ NA_character_
+  )) %>%
+  mutate(attended_training = case_when(
+    attended_training == 1 ~ "male",
+    attended_training == 2 ~ "female",
+    attended_training == 3 ~ "both",
+    TRUE ~ NA_character_
+  )) %>%
+  select(gender, presnt_surv, attended_training, attended_survey, intervetion_prefill2, singl_marr)
+```
+
+## Distribution of Attended Training
+
+```{r, echo = FALSE, message = FALSE, warning=FALSE, fig.height=3, fig.width=5}
+# Assuming you have the summarized data
+summarized_data <- attendance %>%
+  select(attended_training, intervetion_prefill2) %>%
+  filter(intervetion_prefill2 == "Treatment") %>%
+  mutate(attended_training = factor(attended_training, levels = c("both", "female", "male"))) %>%
+  group_by(attended_training) %>%
+  summarise(n = n()) %>%
+  mutate(n_pct = n / sum(n))
+
+# Create a bar plot
+ggplot(summarized_data, aes(x = attended_training, y = n_pct)) +
+  geom_bar(stat = "identity", fill = "#a8605d") +
+  labs(
+    title = "Distribution of Attended Training",
+    subtitle = "Tratment Group Only",
+    x = "Attended Training",
+    y = "Percentage"
+  ) +
+  theme_minimal()
+```
+
+### Married only
+
+```{r, echo = FALSE, message = FALSE, warning=FALSE, fig.height=2.5, fig.width=4.5}
+# Assuming you have the summarized data
+summarized_data <- attendance %>%
+  filter(intervetion_prefill2 == "Treatment") %>%
+  filter(singl_marr == 2) %>%
+  select(attended_training, intervetion_prefill2) %>%
+  mutate(attended_training = factor(attended_training, levels = c("female", "male", "both"))) %>%
+  group_by(attended_training, .drop = FALSE) %>%
+  tally()
+
+# Create a bar plot
+ggplot(summarized_data, aes(x = attended_training, y = n)) +
+  geom_bar(stat = "identity", fill = "#a8605d") +
+  labs(
+    title = "Distribution of Attended Training",
+    subtitle = "Married and Treatment Group Only",
+    x = "Attended Training",
+    y = "Number of People"
+  ) +
+  theme_minimal()
+```
+
+
+## Distribution of Attended Survey
+
+```{r, echo = FALSE, message = FALSE, warning=FALSE, fig.height=3.5, fig.width=5.5}
+summarized_data <- attendance %>%
+  select(attended_survey, intervetion_prefill2) %>%
+  mutate(attended_survey = factor(attended_survey, levels = c("female", "male", "both"))) %>%
+  group_by(intervetion_prefill2, attended_survey, .drop = FALSE) %>%
+  tally()
+
+# Calculate percentages within intervention_prefill2 groups
+summarized_data <- summarized_data %>%
+  group_by(intervetion_prefill2) %>%
+  mutate(percentage = (n / sum(n)) * 100)
+
+# Create a bar plot
+ggplot(summarized_data, aes(x = attended_survey, y = percentage, fill = intervetion_prefill2)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(
+    title = "Distribution of Attended Survey",
+    x = "Attended Survey",
+    y = "Percentage"
+  ) +
+  scale_fill_manual(values = c("Treatment" = "#a8605d", "control" = "#7fabc7")) +  # Custom color mapping
+  theme_minimal() +
+  labs(fill = "Intervention")  # Rename the legend title
+```
+
+### Married only 
+```{r, echo = FALSE, message = FALSE, warning=FALSE, fig.height=2.5, fig.width=4.5}
+summarized_data <- attendance %>%
+  filter(singl_marr == 2) %>%
+  select(attended_survey, intervetion_prefill2) %>%
+  mutate(attended_survey = factor(attended_survey, levels = c("female", "male", "both"))) %>%
+  group_by(intervetion_prefill2, attended_survey, .drop = FALSE) %>%
+  tally()
+
+# Create a bar plot
+ggplot(summarized_data, aes(x = attended_survey, y = n, fill = intervetion_prefill2)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(
+    title = "Distribution of Attended Survey",
+    subtitle = "Married Only",
+    x = "Attended Survey",
+    y = "Count"
+  ) +
+  scale_fill_manual(values = c("Treatment" = "#a8605d", "control" = "#7fabc7")) +  # Custom color mapping
+  theme_minimal() +
+  labs(fill = "Intervention")  # Rename the legend title
+```
+
+## Attendance for Treatment Group
+### Survey = Columns
+### Training = Rows 
+
+```{r, echo = FALSE, warning=FALSE, message = FALSE}
+#creating the crosstab
+treatment_attendance <- attendance %>%
+  filter(intervetion_prefill2 == "Treatment")
+
+cross_tab <- table(treatment_attendance$attended_training, #rows
+                   treatment_attendance$attended_survey) #columns
+
+percent_cross_tab <- round(prop.table(cross_tab) * 100,2)
+
+kable(percent_cross_tab, format = "markdown")
+```
+
+## Attended Training / Survey with crosstab
+```{r, echo = FALSE, warning=FALSE, message = FALSE}
+crosstab <- full_data %>%
+  mutate(attended_training = coalesce(presnt_train, attend_train)) %>%
+  filter(intervetion_prefill2 == "Treatment") %>%
+  select(gender, presnt_surv, attended_training)
+```
+
+```{r, echo = FALSE, message = FALSE, warning=FALSE, fig.height=3.5, fig.width=5}
+# Calculate who from the couple attended the training (T group only) based on 'attended_training'
+crosstab$attended_training_group <- case_when(
+  crosstab$attended_training == 1 & crosstab$gender == 1 ~ "Respondent attended training",
+  crosstab$attended_training == 1 & crosstab$gender == 2 ~ "Respondent did not attend training",
+  crosstab$attended_training == 2 & crosstab$gender == 1 ~ "Respondent did not attend training",
+  crosstab$attended_training == 2 & crosstab$gender == 2 ~ "Respondent attended training",
+  crosstab$attended_training == 3 ~ "Respondent attended training",
+  crosstab$attended_training == 4 ~ "Respondent did not attend training",
+  is.na(crosstab$gender) ~ "Respondent attended training",
+  TRUE ~ "Did not attend"
+)
+
+data <- table(crosstab$attended_training_group)
+
+# Convert the data frame to a data frame for plotting
+df <- as.data.frame(data)
+df$attended_training_group <- rownames(data)
+
+# Create the bar plot
+ggplot(df, aes(x = attended_training_group, y = Freq)) +
+  geom_bar(stat = "identity", fill = "#a8605d") +
+  labs(x = "Group", y = "Count") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 0, hjust = 0.5)) +
+  labs(title = "Number of respondents who attended the training")
+
+
+# Calculate who from the couple attended the survey based on 'presnt_surv'
+crosstab$attended_survey_group <- case_when(
+  crosstab$presnt_surv == 1 ~ "Couple",
+  crosstab$presnt_surv == 2 ~ "Single",
+  crosstab$presnt_surv == 3 ~ "No one is present"
+)
+
+# Cross-tabulate the two variables to create a contingency table
+cross_tab <- table(crosstab$attended_training_group, crosstab$attended_survey_group)
+
+# Display the cross-tabulation
+kable(cross_tab, format = "markdown")
+```
+
+# Covariates 
+
+### Is the person single or married?
+```{r, echo = FALSE, warning=FALSE, fig.height=3, fig.width=5}
+full_data %>%
+  mutate(singl_marr = factor(singl_marr, levels = c(1, 2), labels = c("Single", "Married"))) %>%
+  group_by(intervetion_prefill2, singl_marr, .drop = FALSE) %>%
+  tally() %>%
+  ggplot(aes(x = singl_marr, y = n, fill = intervetion_prefill2)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(
+    title = "Distribution of Marriage Status by Intervention",
+    x = "Marriage Status",
+    y = "Count"
+  ) +
+  scale_fill_manual(values = c("Treatment" = "#a8605d", "control" = "#7fabc7")) +  # Custom color mapping
+  theme_minimal() +
+  labs(fill = "Intervention")
+```
+
+### Gender of the head of household?
+
+```{r, echo = FALSE, warning=FALSE, fig.height=3, fig.width=5}
+full_data %>%
+  mutate(hh_head_gender = factor(hh_head_gender, levels = c(1, 2), labels = c("Male", "Female"))) %>%
+  group_by(intervetion_prefill2, hh_head_gender, .drop = FALSE) %>%
+  tally() %>%
+  ggplot(aes(x = hh_head_gender, y = n, fill = intervetion_prefill2)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(
+    title = "Distribution of HH Head by Intervention",
+    x = "Gender",
+    y = "Count"
+  ) +
+  scale_fill_manual(values = c("Treatment" = "#a8605d", "control" = "#7fabc7")) +  # Custom color mapping
+  theme_minimal() +
+  labs(fill = "Intervention")
+```
+
+### Is the person doing the survey the one acre farmer?
+```{r, echo = FALSE, warning=FALSE, fig.height=3, fig.width=5}
+full_data %>%
+  mutate(oneacrefarmer_full = factor(oneacrefarmer_full, levels = c("Yes", "No"))) %>%
+  group_by(intervetion_prefill2, oneacrefarmer_full, .drop = FALSE) %>%
+  tally() %>%
+  ggplot(aes(x = oneacrefarmer_full, y = n, fill = intervetion_prefill2)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(
+    title = "Distribution of One Acre Farmer by Intervention",
+    x = "One Acre Farmer",
+    y = "Count"
+  ) +
+  scale_fill_manual(values = c("Treatment" = "#a8605d", "control" = "#7fabc7")) +  # Custom color mapping
+  theme_minimal() +
+  labs(fill = "Intervention")
+```
+
+### Number of household members 
+```{r, echo = FALSE, warning=FALSE, message = FALSE, fig.height=3, fig.width=5}
+full_data %>%
+  mutate(household_members = num_hus + num_wife + num_child + num_otr) %>%
+  group_by(intervetion_prefill2, household_members) %>%
+  summarise(n = n()) %>%
+  ggplot(aes(x = household_members, y = n, fill = intervetion_prefill2)) +
+  geom_bar(stat = "identity") + 
+  scale_fill_manual(values = c("Treatment" = "#a8605d", "control" = "#7fabc7")) +
+  theme_bw() +
+  facet_wrap(~intervetion_prefill2) + 
+  labs(x = "number of household member",
+       y = "frequency",
+       title = "Number of household members (T vs C)") +
+  scale_x_continuous(breaks = c(2, 4, 6, 8, 10, 12)) +
+  theme(legend.position = "null")
+
+hh_members <- full_data %>%
+  mutate(household_members = num_hus + num_wife + num_child + num_otr) %>%
+  group_by(intervetion_prefill2) %>%
+  summarize(
+    'Mean household size' = round(mean(household_members, na.rm = TRUE), 2),
+    'SD household size' = round(sd(household_members, na.rm = TRUE),2)
+  )
+
+kable(hh_members, format = "markdown")
+```
+
+
+# DURATION BY SURVEYOR
+
+```{r, echo = FALSE, warning=FALSE, message = FALSE}
+# Calculate mean and standard deviation of survey_duration
+duration_summary <- full_data_key_vars_full %>% 
+  group_by(intervetion_prefill2, enumerator_name_label) %>%
+  summarize(mean_duration = mean(survey_duration),
+            sd_duration = sd(survey_duration))
+
+# Create a bar plot with error bars
+ggplot(duration_summary, aes(x = enumerator_name_label, y = mean_duration, fill = intervetion_prefill2)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  geom_errorbar(aes(ymin = mean_duration - sd_duration, ymax = mean_duration + sd_duration), 
+                width = 0.2, position = position_dodge(0.9)) +
+  labs(title = "Mean Duration by Enumerator",
+       x = "Enumerator Name",
+       y = "Mean Duration (Minutes)") +
+  theme_minimal() +
+  theme(legend.position = "none") +
+  scale_fill_manual(values = c("Treatment" = "#a8605d", "control" = "#7fabc7")) +
+  facet_wrap(~intervetion_prefill2, scales = "free_x") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+```
+
+```{r, echo = FALSE, warning=FALSE, message = FALSE}
+enumerator_times <- full_data_key_vars_full %>% 
+  group_by(enumerator_name_label) %>%
+  summarize(mean_duration = round(mean(survey_duration), 0),
+            min_duration = round(min(survey_duration),0),
+            max_duration = round(max(survey_duration), 0),
+            n = n()) %>%
+  arrange(desc(n))
+
+kable(enumerator_times, format = "markdown")
+```
+
+
+# BAGS OF MAIZE RIGHT NOW
+
+```{r, echo = FALSE, warning=FALSE, fig.height=3.8, fig.width=6}
+#overlay hist ----
+ggplot(data = full_data_key_vars_full, aes(x = bags_have, fill = intervetion_prefill2)) +
+  geom_histogram(bins = 10, position = "identity", alpha = 0.6) +
+  theme_bw() +
+  scale_fill_manual(values = c("Treatment" = "#a8605d", "control" = "#7fabc7")) +
+  labs(
+    title = "Distribution of Number of Maize Bags Owned",
+    x = "Number of Maize Bags Owned",
+    y = "Frequency",
+    fill = "Intervention"
+  ) 
+```
+
+```{r, echo = FALSE, warning=FALSE, message = FALSE}
+zero_count_summary <- full_data_key_vars_full %>%
+  group_by(intervetion_prefill2) %>%
+  summarize(
+    Zero_Count = sum(bags_have == 0),
+    Total_Count = n()
+  ) %>%
+  mutate(Percentage_Zero = round((Zero_Count / Total_Count) * 100, 2))
+
+kable(zero_count_summary, format = "markdown")
+```
+
+```{r, echo = FALSE, warning=FALSE, message = FALSE}
+print(paste("The minimum bags of maize was", min(full_data_key_vars_full$bags_have),"and the maximum was", max(full_data_key_vars_full$bags_have)))
+```
+
+
+# EXPECTED FOOD EXPENSE IN MAIZE BAGS
+
+```{r, echo = FALSE, warning=FALSE, fig.height=3.8, fig.width=6}
+# overlay hist ----
+ggplot(data = full_data_key_vars_full, aes(x = howmany_bags, fill = intervetion_prefill2)) +
+  geom_histogram(bins = 10, position = "identity", alpha = 0.6) +
+  theme_bw() +
+  scale_fill_manual(values = c("Treatment" = "#a8605d", "control" = "#7fabc7")) + 
+  labs(
+    title = "Distribution of Total Expected Maize Bag Purchases",
+    x = "Expected Maize Bag Purchases",
+    y = "Frequency",
+    fill = "Intervention"
+  )
+```
+
+```{r, echo = FALSE, warning=FALSE, message = FALSE}
+zero_count_summary <- full_data_key_vars_full %>%
+  group_by(intervetion_prefill2) %>%
+  summarize(
+    Zero_Count = sum(howmany_bags == 0),
+    Total_Count = n()
+  ) %>%
+  mutate(Percentage_Zero = round((Zero_Count / Total_Count) * 100, 2))
+
+kable(zero_count_summary, format = "markdown")
+```
+
+```{r, echo = FALSE, warning=FALSE, message = FALSE}
+print(paste("The minimum expected food expense in maize bags was", min(full_data_key_vars_full$howmany_bags, na.rm = TRUE),"and the maximum was", max(full_data_key_vars_full$howmany_bags, na.rm=TRUE)))
+```
+
+# EXPECTED FOOD EXPENSE - COST OF MAIZE BAGS
+
+```{r, echo = FALSE, warning=FALSE, fig.height=3.8, fig.width=6}
+# overlay hist ----
+ggplot(data = full_data_key_vars_full, aes(x = bags_cost_thousands, fill = intervetion_prefill2)) +
+  geom_histogram(bins = 10, position = "identity", alpha = 0.6) +
+  theme_bw() +
+  scale_fill_manual(values = c("Treatment" = "#a8605d", "control" = "#7fabc7")) + 
+  labs(
+    title = "Distribution of Total Expected Cost from Maize Bag Purchases",
+    x = "Expected Cost (1000s Kwacha) from Maize Bag Purchases",
+    y = "Frequency",
+    fill = "Intervention"
+  ) 
+```
+
+```{r, echo = FALSE, warning=FALSE, message = FALSE}
+zero_count_summary <- full_data_key_vars_full %>%
+  group_by(intervetion_prefill2) %>%
+  summarize(
+    Zero_Count = sum(bags_cost_thousands == 0),
+    Total_Count = n()
+  ) %>%
+  mutate(Percentage_Zero = round((Zero_Count / Total_Count) * 100, 2))
+
+kable(zero_count_summary, format = "markdown")
+```
+
+```{r, echo = FALSE, warning=FALSE, message = FALSE}
+print(paste("The minimum expected food expense in maize bags was", min(full_data_key_vars_full$bags_cost_thousands, na.rm = TRUE),"and the maximum was", max(full_data_key_vars_full$bags_cost_thousands, na.rm=TRUE)))
+```
+
+
+# EXPECTED FOOD EXPENSE (IN KWACHA)
+
+```{r, echo = FALSE, warning=FALSE, fig.height=3.8, fig.width=6}
+# overlay hist ----
+ggplot(data = full_data_key_vars_full, aes(x = kindof_food_cost_thousands, fill = intervetion_prefill2)) +
+  geom_histogram(bins = 10, position = "identity", alpha = 0.6) +
+  theme_bw() +
+  scale_fill_manual(values = c("Treatment" = "#a8605d", "control" = "#7fabc7")) + 
+  labs(
+    title = "Distribution of Total Expected Food Expense (1000s Kwacha)",
+    x = "Total Expected Food Expense (in 1000s Kwacha)",
+    y = "Frequency",
+    fill = "Intervention"
+  ) 
+```
+
+```{r, echo = FALSE, warning=FALSE, message = FALSE}
+zero_count_summary <- full_data_key_vars_full %>%
+  group_by(intervetion_prefill2) %>%
+  summarize(
+    Zero_Count = sum(kindof_food_cost_thousands == 0),
+    Total_Count = n()
+  ) %>%
+  mutate(Percentage_Zero = round((Zero_Count / Total_Count) * 100, 2))
+
+kable(zero_count_summary, format = "markdown")
+```
+
+```{r, echo = FALSE, warning=FALSE, message = FALSE}
+print(paste("The minimum expected food expense in kwacha was", min(full_data_key_vars_full$kindof_food_cost_thousands, na.rm = TRUE),"and the maximum was", max(full_data_key_vars_full$kindof_food_cost_thousands, na.rm = TRUE)))
+```
+
+# EXPECTED NON FOOD EXPENSE IN MAIZE BAGS
+
+```{r, echo = FALSE, warning=FALSE, fig.height=3.8, fig.width=6}
+# overlay hist ----
+ggplot(data = full_data_key_vars_full, aes(x = nonbagsexpct_sell, fill = intervetion_prefill2)) +
+  geom_histogram(bins = 10, position = "identity", alpha = 0.6) +
+  theme_bw() +
+  scale_fill_manual(values = c("Treatment" = "#a8605d", "control" = "#7fabc7")) + 
+  labs(
+    title = "Distribution of Total Expected Non-Food Expense (in Maize bags)",
+    x = "Total Non-Food Expense (in Maize bags)",
+    y = "Frequency",
+    fill = "Intervention"
+  ) 
+```
+
+```{r, echo = FALSE, warning=FALSE, message = FALSE}
+zero_count_summary <- full_data_key_vars_full %>%
+  group_by(intervetion_prefill2) %>%
+  summarize(
+    Zero_Count = sum(nonbagsexpct_sell == 0),
+    Total_Count = n()
+  ) %>%
+  mutate(Percentage_Zero = round((Zero_Count / Total_Count) * 100, 2))
+
+kable(zero_count_summary, format = "markdown")
+```
+
+```{r, echo = FALSE, warning=FALSE, message = FALSE}
+print(paste("The minimum expected non-food expense in maize bags was", min(full_data_key_vars_full$nonbagsexpct_sell, na.rm = TRUE),"and the maximum was", max(full_data_key_vars_full$nonbagsexpct_sell, na.rm = TRUE)))
+```
+
+
+# EXPECTED NON FOOD EXPENSE IN KWACHA
+
+```{r, echo = FALSE, warning=FALSE, fig.height=3.8, fig.width=6}
+# overlay hist ----
+
+ggplot(data = full_data_key_vars_full, aes(x = extramony_nonfod_thousands, fill = intervetion_prefill2)) +
+  geom_histogram(bins = 10, position = "identity", alpha = 0.6) +
+  theme_bw() +
+  scale_fill_manual(values = c("Treatment" = "#a8605d", "control" = "#7fabc7")) + 
+  labs(
+    title = "Distribution of Total Expected Non-Food Expense (in 1000s Kwacha)",
+    x = "Total Non-Food Expense (in 1000s Kwacha)",
+    y = "Frequency",
+    fill = "Intervention"
+  ) 
+```
+
+```{r, echo = FALSE, warning=FALSE, message = FALSE}
+zero_count_summary <- full_data_key_vars_full %>%
+  group_by(intervetion_prefill2) %>%
+  summarize(
+    Zero_Count = sum(extramony_nonfod_thousands == 0),
+    Total_Count = n()
+  ) %>%
+  mutate(Percentage_Zero = round((Zero_Count / Total_Count) * 100, 2))
+
+kable(zero_count_summary, format = "markdown")
+```
+
+```{r, echo = FALSE, warning=FALSE, message = FALSE}
+print(paste("The minimum expected non-food expense in kwacha was", min(full_data_key_vars_full$extramony_nonfod_thousands, na.rm = TRUE),"and the maximum was", max(full_data_key_vars_full$extramony_nonfod_thousands, na.rm = TRUE)))
+```
+
+
+# EXPECTED GANYU TOTAL
+
+```{r, echo = FALSE, warning=FALSE, fig.height=3.8, fig.width=6}
+# overlay hist ----
+
+ggplot(data = full_data_key_vars_full, aes(x = total_ganyu_thousands, fill = intervetion_prefill2)) +
+  geom_histogram(bins = 10, position = "identity", alpha = 0.6) +
+  theme_bw() +
+  scale_fill_manual(values = c("Treatment" = "#a8605d", "control" = "#7fabc7")) + 
+  labs(
+    title = "Distribution of Total Expected Ganyu (in 1000s Kwacha)",
+    x = "Total Ganyu (in 1000s Kwacha)",
+    y = "Frequency",
+    fill = "Intervention"
+  ) 
+```
+
+```{r, echo = FALSE, warning=FALSE, message = FALSE}
+zero_count_summary <- full_data_key_vars_full %>%
+  group_by(intervetion_prefill2) %>%
+  summarize(
+    Zero_Count = sum(total_ganyu_thousands == 0),
+    Total_Count = n()
+  ) %>%
+  mutate(Percentage_Zero = round((Zero_Count / Total_Count) * 100, 2))
+
+kable(zero_count_summary, format = "markdown")
+```
+
+```{r, echo = FALSE, warning=FALSE, message = FALSE}
+print(paste("The minimum expected total ganyu was", min(full_data_key_vars_full$total_ganyu_thousands, na.rm = TRUE),"and the maximum was", max(full_data_key_vars_full$total_ganyu_thousands, na.rm = TRUE)))
+```
+
+# WILLINGNESS TO PAY (WTP) DURATION BY SURVEYOR
+
+```{r, echo = FALSE, warning=FALSE, message = FALSE}
+full_data_key_vars_full %>% 
+  group_by(intervetion_prefill2, enumerator_name_label) %>%
+  summarize(mean_duration = mean(WTP_duration),
+            sd_duration = sd(WTP_duration)) %>%
+  ggplot(aes(x = enumerator_name_label, y = mean_duration, fill = intervetion_prefill2)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  geom_errorbar(aes(ymin = mean_duration - sd_duration, ymax = mean_duration + sd_duration), 
+                width = 0.2, position = position_dodge(0.9)) +
+  labs(title = "Mean Duration by Enumerator",
+       x = "Enumerator Name",
+       y = "Mean Duration (Minutes)") +
+  theme_minimal() +
+  scale_fill_manual(values = c("Treatment" = "#a8605d", "control" = "#7fabc7")) +
+  facet_wrap(~intervetion_prefill2, scales = "free_x") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  labs(fill = "Intervention")
+```
+
+# WTP FOR PRACTICE GOOD (BAG)
+
+```{r, echo = FALSE, warning=FALSE, fig.height=3.5, fig.width=6}
+# overlay hist ----
+ggplot(data = full_data_key_vars_full, aes(x = partb_final_wtp, fill = intervetion_prefill2)) +
+  geom_histogram(bins = 10, position = "identity", alpha = 0.6) +
+  theme_bw() +
+  scale_fill_manual(values = c("Treatment" = "#a8605d", "control" = "#7fabc7")) +
+  labs(
+    title = "WTP for Bag (in Kwacha)",
+    x = "WTP for Bag (in Kwacha)",
+    y = "Frequency",
+    fill = "Intervention"
+  )
+```
+
+```{r, echo = FALSE, warning=FALSE, fig.height=3.5, fig.width=6}
+library(ggpubr)
+
+# Perform a t-test to compare the two groups and obtain p-values
+t_test_result <- t.test(partb_final_wtp ~ intervetion_prefill2, data = full_data_key_vars_full)
+
+ggplot(data = full_data_key_vars_full, aes(x = intervetion_prefill2, y = partb_final_wtp, fill = intervetion_prefill2)) +
+  geom_boxplot() +
+  theme_bw() +
+  theme(legend.position = "none") +
+  scale_fill_manual(values = c("Treatment" = "#a8605d", "control" = "#7fabc7")) +
+  labs(
+    title = "WTP for Bag (in Kwacha)",
+    x = "Intervention Type",
+    y = "WTP for Bag (in Kwacha)"
+  ) +
+  stat_compare_means(
+    comparisons = list(c("Treatment", "control")),
+    method = "t.test",
+    test = t_test_result
+  ) +
+  ylim(NA, max(full_data_key_vars_full$partb_final_wtp) + 500)  # Adjust the y-axis limit here
+```
+
+
+## WTP BY SITE
+
+```{r, echo = FALSE, warning=FALSE, fig.height=6, fig.width=6}
+# Create the faceted boxplot with p-value comparisons
+ggplot(data = full_data_key_vars_full, aes(x = intervetion_prefill2, y = partb_final_wtp, fill = intervetion_prefill2)) +
+  geom_boxplot() +
+  theme_bw() +
+  theme(legend.position = "none") +
+  scale_fill_manual(values = c("Treatment" = "#a8605d", "control" = "#7fabc7")) +
+  labs(
+    title = "WTP for Bag (in Kwacha)",
+    x = "Intervention Type",
+    y = "WTP for Bag (in Kwacha)"
+  ) +
+  ylim(NA, max(full_data_key_vars_full$partb_final_wtp) + 500) +  # Adjust the y-axis limit here
+  facet_wrap(~sitename_prefill) +  # Facet by sitename_prefill with free scales
+  stat_compare_means(
+    method = "t.test",  # Use t-test for comparisons
+    label = "p.format",
+    label.x.npc = "center",
+    label.y.npc = "middle",
+    label.y = max(full_data_key_vars_full$partb_final_wtp) + 300
+  )
+```
+
+
+
+# WTP FOR CHITENJE
+
+```{r, echo = FALSE, warning=FALSE, fig.height=3.5, fig.width=6}
+# overlay hist ----
+ggplot(data = full_data_key_vars_full, aes(x = chitenje_wtp, fill = intervetion_prefill2)) +
+  geom_histogram(bins = 10, position = "identity", alpha = 0.6) +
+  theme_bw() +
+  scale_fill_manual(values = c("Treatment" = "#a8605d", "control" = "#7fabc7")) +
+  labs(
+    title = "WTP for Chitenje (in Kwacha)",
+    x = "WTP for Chitenje (in Kwacha)",
+    y = "Frequency",
+    fill = "Intervention"
+  )
+```
+
+```{r, echo = FALSE, warning=FALSE, fig.height=3.5, fig.width=6}
+
+# Perform a t-test to compare the two groups and obtain p-values
+t_test_result <- t.test(chitenje_wtp ~ intervetion_prefill2, data = full_data_key_vars_full)
+
+ggplot(data = full_data_key_vars_full, aes(x = intervetion_prefill2, y = chitenje_wtp, fill = intervetion_prefill2)) +
+  geom_boxplot() +
+  theme_bw() +
+  theme(legend.position = "none") +
+  scale_fill_manual(values = c("Treatment" = "#a8605d", "control" = "#7fabc7")) +
+  labs(
+    title = "WTP for Chitenje (in Kwacha)",
+    x = "Intervention Type",
+    y = "WTP for Chitenje (in Kwacha)"
+  ) +
+  stat_compare_means(
+    comparisons = list(c("Treatment", "control")),
+    method = "t.test",
+    test = t_test_result
+  ) +
+  ylim(NA, max(full_data_key_vars_full$chitenje_wtp) + 500)  # Adjust the y-axis limit here
+```
+
+## WTP FOR CHITENJE BY SITE 
+
+```{r, echo = FALSE, warning=FALSE, fig.height=6, fig.width=6}
+# Create the faceted boxplot with p-value comparisons
+ggplot(data = full_data_key_vars_full, aes(x = intervetion_prefill2, y = chitenje_wtp, fill = intervetion_prefill2)) +
+  geom_boxplot() +
+  theme_bw() +
+  theme(legend.position = "none") +
+  scale_fill_manual(values = c("Treatment" = "#a8605d", "control" = "#7fabc7")) +
+  labs(
+    title = "WTP for Chitenje (in Kwacha)",
+    x = "Intervention Type",
+    y = "WTP for Chitenje (in Kwacha)"
+  ) +
+  ylim(NA, max(full_data_key_vars_full$chitenje_wtp) + 500) +  # Adjust the y-axis limit here
+  facet_wrap(~sitename_prefill) +  # Facet by sitename_prefill with free scales
+  stat_compare_means(
+    method = "t.test",  # Use t-test for comparisons
+    label = "p.format",
+    label.x.npc = "center",
+    label.y.npc = "middle",
+    label.y = max(full_data_key_vars_full$chitenje_wtp) + 300
+  )
+```
+
+# WTP FOR TORCH
+
+```{r, echo = FALSE, warning=FALSE, fig.height=3.5, fig.width=6}
+# Overlay hist torch ----
+ggplot(data = full_data_key_vars_full, aes(x = torch_wtp, fill = intervetion_prefill2)) +
+  geom_histogram(bins = 10, position = "identity", alpha = 0.6) +
+  theme_bw() +
+  scale_fill_manual(values = c("Treatment" = "#a8605d", "control" = "#7fabc7")) +
+  labs(
+    title = "WTP for Torch (in Kwacha)",
+    x = "WTP for Torch (in Kwacha)",
+    y = "Frequency",
+    fill = "Intervention"
+  )
+```
+
+```{r, echo = FALSE, warning=FALSE, fig.height=3.5, fig.width=6}
+# Perform a t-test to compare the two groups and obtain p-values
+t_test_result_torch <- t.test(torch_wtp ~ intervetion_prefill2, data = full_data_key_vars_full)
+
+# Create the plot with the adjusted y-axis limit and t-test annotation
+ggplot(data = full_data_key_vars_full, aes(x = intervetion_prefill2, y = torch_wtp, fill = intervetion_prefill2)) +
+  geom_boxplot() +
+  theme_bw() +
+  theme(legend.position = "none") +
+  scale_fill_manual(values = c("Treatment" = "#a8605d", "control" = "#7fabc7")) +
+  labs(
+    title = "WTP for Torch (in Kwacha)",
+    x = "Intervention Type",
+    y = "WTP for Torch (in Kwacha)"
+  ) +
+  stat_compare_means(
+    comparisons = list(c("Treatment", "control")),
+    method = "t.test",
+    test = t_test_result_torch
+  ) +
+  ylim(NA, max(full_data_key_vars_full$torch_initial_wtp) + 500)  # Use max_y_limit within the ylim() function
+```
+
+## WTP FOR TORCH BY SITE
+
+```{r, echo = FALSE, warning=FALSE, fig.height=6, fig.width=6}
+# Create the faceted boxplot with p-value comparisons
+ggplot(data = full_data_key_vars_full, aes(x = intervetion_prefill2, y = torch_wtp, fill = intervetion_prefill2)) +
+  geom_boxplot() +
+  theme_bw() +
+  theme(legend.position = "none") +
+  scale_fill_manual(values = c("Treatment" = "#a8605d", "control" = "#7fabc7")) +
+  labs(
+    title = "WTP for Torch (in Kwacha)",
+    x = "Intervention Type",
+    y = "WTP for Torch (in Kwacha)"
+  ) +
+  ylim(NA, max(full_data_key_vars_full$torch_wtp) + 500) +  # Adjust the y-axis limit here
+  facet_wrap(~sitename_prefill) +  # Facet by sitename_prefill with free scales
+  stat_compare_means(
+    method = "t.test",  # Use t-test for comparisons
+    label = "p.format",
+    label.x.npc = "center",
+    label.y.npc = "middle",
+    label.y = max(full_data_key_vars_full$torch_wtp) + 300
+  )
+```
+
+
+
+
+# WTP Drawing
+
+## Did participant get the good and actually pay the money? 
+
+```{r, echo = FALSE, warning=FALSE, message = FALSE}
+# Create a summary of the data
+payment_summary <- full_data_key_vars_full %>%
+  group_by(intervetion_prefill2, actul_pay) %>%
+  summarize(outcome = n()) %>%
+  pivot_wider(names_from = intervetion_prefill2, values_from = outcome)
+
+# Define all possible values for actul_pay
+all_actul_pay_values <- c(1, 2, NA)
+
+# Ensure all combinations are present and replace missing values with 0
+payment_summary <- payment_summary %>%
+  complete(actul_pay = all_actul_pay_values, fill = list(Treatment = 0, control = 0)) %>%
+  mutate(actually_paid = ifelse(actul_pay == 1, "Yes", ifelse(actul_pay == 2, "No", as.character(actul_pay)))) %>%
+  select(actually_paid, Treatment, control)
+
+kable(payment_summary, format = "markdown")
+```
+
+
+
+
+
+
+
+# After you went through the session, did you feel that it was easy to understand how to use the board?
+
+```{r, echo = FALSE, message = FALSE, warning=FALSE, fig.height=3.5, fig.width=5}
+full_data %>%
+  mutate(
+    understand = factor(
+      understand, 
+      levels = c(1, 2, 3, 4, 5),
+      labels = c("Very hard", "Somewhat hard", "Not easy or hard", "Somewhat easy", "Very easy")
+    )
+  ) %>%
+  filter(intervetion_prefill2 == "Treatment") %>%
+  group_by(understand, .drop = FALSE) %>%
+  summarise(outcome = n()) %>%
+  ggplot(aes(x = understand, y = outcome)) +
+  geom_bar(stat = "identity", fill = "#a8605d") +
+  labs(
+    title = "Distribution of understanding how to use the board",
+    x = "Understand Rating",
+    y = "Count"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+```
+
+
+# Where on the board did this person record how much money they will make from their various sources of income (like crop sales, ganyu, etc)?
+
+```{r, echo = FALSE, message = FALSE, warning=FALSE, fig.height=3.5, fig.width=5}
+# Create a new variable "correct_where" based on "where" values
+quiz <- full_data %>%
+  filter(intervetion_prefill2 == "Treatment") %>%
+  mutate(correct_where = ifelse(where == 1, "Correct", "Not Correct"))
+
+# Group and summarize the data
+summary_data <- quiz %>%
+  group_by(correct_where) %>%
+  summarise(count = n())
+
+# Plot the data
+ggplot(summary_data, aes(x = correct_where, y = count)) +
+  geom_bar(stat = "identity", fill = "#a8605d") +
+  labs(
+    title = "Correct vs. Not Correct for Comprehension Question",
+    x = "Accuracy",
+    y = "Count"
+  ) +
+  theme_minimal()
+
+```
+
+# In the month of December, the person has written that they would do 5000 worth of Ganyu, but the sticker says 100,000. Why do you think this is?
+```{r, echo = FALSE, message = FALSE, warning=FALSE, fig.height=3.8, fig.width=6}
+full_data %>%
+  mutate(ganyu_5000 = factor(ganyu_5000, 
+                             levels = c(1, 2, 3), 
+                             labels = c("Person Made Mistake", "Short on income, \n increased Ganyu", "I don't know"))) %>%
+  filter(intervetion_prefill2 == "Treatment") %>%
+  group_by(ganyu_5000) %>%
+  summarise(outcome = n()) %>%
+  ggplot(aes(x = ganyu_5000, y = outcome)) +
+  geom_bar(stat = "identity", fill = "#a8605d") +
+  labs(
+    title = "Distribution of responses for Ganyu Question",
+    x = "",
+    y = "Count"
+  ) +
+  theme_minimal() 
+```
+
+# How likely are you to use the blank board to record your actual income and expenses?
+
+```{r, echo = FALSE, message = FALSE, warning=FALSE, fig.height=3.5, fig.width=5}
+useful <- full_data %>%
+  filter(intervetion_prefill2 == "Treatment") %>%
+  mutate(likelihood = case_when(
+    use_pboard == 1 ~ "Definitely",
+    use_pboard == 2 ~ "Maybe",
+    use_pboard == 3 ~ "Definitely not",
+    use_pboard == 4 ~ "Not sure"
+  ))
+
+# Group and summarize the data
+summary_data <- useful %>%
+  group_by(likelihood) %>%
+  summarise(count = n())
+
+# Plot the data
+ggplot(summary_data, aes(x = likelihood, y = count)) +
+  geom_bar(stat = "identity", fill = "#a8605d") +
+  labs(
+    title = "Likelihood of Using Blank Board \n to Record Income/Expenses",
+    x = "Likelihood",
+    y = "Count"
+  ) +
+  theme_minimal()
+```
+
+
+
+# At the group meeting, were you given labels to put on your maize bags?
+```{r, echo = FALSE, message = FALSE, warning=FALSE, fig.height=3.5, fig.width=5}
+full_data %>%
+  filter(intervetion_prefill2 == "Treatment") %>%
+  mutate(label = factor(label, levels = c(1, 2), labels = c("Yes", "No"))) %>%
+  group_by(label) %>%
+  summarise(outcome = n()) %>%
+  ggplot(aes(x = label, y = outcome)) +
+  geom_bar(stat = "identity", fill = "#a8605d") +
+  labs(
+    title = "Distribution of Labels for Maize Bags",
+    x = "Label Provided",
+    y = "Count"
+  ) +
+  theme_minimal()
+```
+
+# Do you intend to put the labels on your maize bags?
+```{r, echo = FALSE, message = FALSE, warning=FALSE, fig.height=3.5, fig.width=5}
+full_data %>%
+  filter(intervetion_prefill2 == "Treatment") %>%
+  mutate(label_put = as.factor(label_put)) %>%
+  mutate(label_put = recode(label_put, "1" = "Yes", "2" = "No", "NA" = "Already Labeled")) %>%
+  group_by(label_put) %>%
+  summarise(outcome = n()) %>%
+  ggplot(aes(x = label_put, y = outcome)) +
+  geom_bar(stat = "identity", fill = "#a8605d") +
+  labs(
+    title = "Distribution of Intent to Put Labels on Maize Bags",
+    x = "Intent to Label",
+    y = "Count"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "none") +
+  scale_x_discrete(labels = c("Yes", "No", "Already Labeled"))
+```
+
+
+
+
+
+
+
+
+# WTP Regression with treatment and enumerators 
+
+```{r, echo = FALSE, message = FALSE, warning=FALSE, fig.height=3.5, fig.width=5}
+WTP_regression_data <- full_data_key_vars_full %>%
+  select(chitenje_wtp, torch_wtp, intervetion_prefill2, enumerator_name_label) %>%
+  pivot_longer(cols = c("chitenje_wtp", "torch_wtp"), names_to = "Good") %>%
+  mutate(intervetion_prefill2 = as.factor(intervetion_prefill2),
+         enumerator_name_label = as.factor(enumerator_name_label),
+         Good = as.factor(Good)) %>%
+  filter(enumerator_name_label != "Hadjira") #Removing hadjira bc only one interview in just the control group
+
+
+WTP_model <- lm(value ~ intervetion_prefill2 * enumerator_name_label + Good, data = WTP_regression_data)
+
+#summary(WTP_model)
+```
+
+```{r, echo = FALSE, message = FALSE, warning=FALSE, fig.height=4, fig.width=6}
+# Get the unique enumerator names
+enumerator_names <- unique(WTP_regression_data$enumerator_name_label)
+
+# Create an empty data frame to store the interaction coefficients
+interaction_data <- data.frame(enumerator_name_label = character(0), interaction_value = numeric(0))
+
+# Loop through each enumerator name and extract the interaction coefficient
+for (enumerator in enumerator_names) {
+  # Extract the interaction coefficient for the specific enumerator
+  interaction_coefficient <- coef(WTP_model)[paste0("intervetion_prefill2Treatment:enumerator_name_label", enumerator)]
+  
+  # Check if interaction_coefficient is not missing (i.e., not NA)
+  if (!is.na(interaction_coefficient)) {
+    # Append the data to the data frame
+    interaction_data <- rbind(interaction_data, data.frame(enumerator_name_label = enumerator, interaction_value = interaction_coefficient))
+  }
+}
+
+# Sort the data frame by interaction values in descending order
+interaction_data <- interaction_data %>% arrange(desc(interaction_value))
+
+# Create a bar plot
+ggplot(interaction_data, aes(x = reorder(enumerator_name_label, -interaction_value), y = interaction_value)) +
+  geom_bar(stat = "identity", fill = "#70914a", alpha = 0.9) +
+  labs(title = "Interaction Term Values by Enumerator and Treatment",
+       subtitle = "All WTP interaction terms compared to Collins",
+       caption = "*No interaction term was statistically significant at the 0.05 level",
+       y = "Interaction Term Value",
+       x = "Interaction of Enumerator and Treatment") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+
+```{r, echo = FALSE, message = FALSE, warning=FALSE, fig.height=3.5, fig.width=5}
+# # Separate data into treatment and control groups
+# treatment_data <- WTP_regression_data %>% filter(intervetion_prefill2 == "Treatment")
+# control_data <- WTP_regression_data %>% filter(intervetion_prefill2 == "control")
+# 
+# # Perform separate regressions for treatment and control
+# treatment_model <- lm(value ~ enumerator_name_label, data = treatment_data)
+# control_model <- lm(value ~ enumerator_name_label, data = control_data)
+# 
+# # Get predicted values for each enumerator in treatment and control
+# treatment_predicted <- data.frame(
+#   enumerator_name_label = unique(WTP_regression_data$enumerator_name_label),
+#   predicted_value = predict(treatment_model, newdata = data.frame(enumerator_name_label = unique(WTP_regression_data$enumerator_name_label)))) %>%
+#   rename("treatment_prediction" = "predicted_value")
+# 
+# control_predicted <- data.frame(
+#   enumerator_name_label = unique(WTP_regression_data$enumerator_name_label),
+#   predicted_value = predict(control_model, newdata = data.frame(enumerator_name_label = unique(WTP_regression_data$enumerator_name_label)))) %>%
+#   rename("control_prediction" = "predicted_value")
+# 
+# #join the predictions
+# WTP_predictions <- left_join(treatment_predicted, control_predicted, by = "enumerator_name_label")
+
+#   pivot_longer(cols = c("treatment_prediction", "control_prediction"), names_to = "intervention")
+# 
+# # Create a side-by-side bar plot
+# ggplot(WTP_predictions, aes(x = enumerator_name_label, y = value, fill = intervention)) +
+#   geom_bar(stat = "identity", position = "dodge") +
+#   labs(title = "Predicted Surveyor Effects in Treatment and Control", y = "Predicted Value") +
+#   theme_minimal() +
+#   theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+#   scale_fill_manual(values = c("treatment_prediction" = "#a8605d", "control_prediction" = "#7fabc7"))
+
+
+# # Create a side-by-side bar plot
+# ggplot(WTP_predictions, aes(x = enumerator_name_label)) +
+#   geom_bar(aes(y = treatment_prediction, fill = "Treatment"), stat = "identity", position = "dodge", alpha = 0.7) +
+#   geom_bar(aes(y = control_prediction, fill = "Control"), stat = "identity", position = "dodge", alpha = 0.7) +
+#   labs(title = "Predicted WTP by Surveyor in Treatment and Control", 
+#        y = "Predicted Value",
+#        x = "Enumerator",
+#        fill = "Intervention") +
+#   theme_minimal() +
+#   theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+#   scale_fill_manual(values = c("Treatment" = "#a8605d", "Control" = "#7fabc7"))
+```
+
+
+```{r, echo = FALSE, message = FALSE, warning=FALSE, fig.height=4, fig.width=6}
+interaction_effect <- effect("intervetion_prefill2 * enumerator_name_label", WTP_model)
+
+interaction_effect_df <- data.frame(interaction_effect)
+
+ggplot(interaction_effect_df, aes(x = enumerator_name_label, y = fit, fill = intervetion_prefill2)) +
+  geom_bar(stat = "identity", position = position_dodge(width = 0.8), alpha = 0.7) +
+  geom_errorbar(aes(ymin = fit - se, ymax = fit + se), width = 0.2, position = position_dodge(width = 0.8)) +
+  scale_fill_manual(values = c("Treatment" = "#a8605d", "control" = "#7fabc7")) +
+  labs(title = "Predicted WTP for each Surveyor (Treatment and Control)", 
+       y = "Predicted WTP",
+       x = "Enumerator",
+       fill = "Intervention") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+### effect of the good (torch vs chitenje)
+```{r, echo = FALSE, message = FALSE, warning=FALSE, fig.height=3.5, fig.width=5}
+good_effect <- effect("Good", WTP_model)
+
+plot(good_effect)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+```{r, include=FALSE}
+# Planning board stuff
+
+board1 <- read_csv(here("planning_boards", "ONE ACRE - Planning Board-231023.csv"))
+
+board2 <- read_csv(here("planning_boards", "ONE ACRE - Planning Board-241023.csv"))
+
+board3 <- read_csv(here("planning_boards", "ONE ACRE - Planning Board-251023.csv"))
+  
+board4 <- read_csv(here("planning_boards", "ONE ACRE - Planning Board-261023.csv")) 
+
+# board 3 and 4 are the same 
+
+full_board <- read_csv(here("planning_boards", "ONE ACRE - Planning Board-Final.csv"))
+```
+
+
+```{r, include=FALSE}
+test <- left_join(full_data, board4)
+```
+
